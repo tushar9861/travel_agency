@@ -13,24 +13,7 @@ provider "aws" {
   region = "us-east-1"
 }
 
-############################################
-# Variables
-############################################
 
-variable "public_subnet_id" {
-  description = "Public subnet ID where app EC2 will be deployed"
-  type        = string
-}
-
-variable "vpc_security_group_ids" {
-  description = "Security group IDs for EC2"
-  type        = list(string)
-}
-
-variable "key_name" {
-  description = "Key pair for SSH"
-  type        = string
-}
 
 ############################################
 # EC2 Instance for Application Deployment
