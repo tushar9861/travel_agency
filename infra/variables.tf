@@ -1,17 +1,14 @@
 variable "public_subnet_id" {
-  type = string
+  description = "Public subnet ID where EC2 will be launched"
+  type        = string
 }
 
 variable "vpc_security_group_ids" {
-  type = list(string)
+  description = "Security groups to attach to EC2"
+  type        = list(string)
 }
 
 variable "key_name" {
-  type = string
+  description = "Name of the SSH key pair"
+  type        = string
 }
-
-variable "project_name" {
-  type = string
-  default = "travel_agency"
-}
-
