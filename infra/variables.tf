@@ -8,9 +8,18 @@ variable "instance_type" {
 }
 
 variable "ami_id" {
-  type    = string
+  type = string
 }
 
 variable "key_name" {
+  type = string
+}
+
+# Added for Jenkins → Terraform authentication
+variable "aws_access_key" {
+  type = string
+}
+
+variable "aws_secret_key" {
   type = string
 }
