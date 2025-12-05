@@ -1,6 +1,5 @@
 variable "aws_region" {
-  type    = string
-  default = "us-east-1"
+  type = string
 }
 
 variable "instance_type" {
@@ -9,19 +8,12 @@ variable "instance_type" {
 }
 
 variable "ami_id" {
-  type    = string
-  default = "ami-0cca134ec43cf708f"
+  type = string
 }
 
 variable "key_name" {
-  type    = string
-  default = "key2"
-}
-
-variable "aws_access_key" {
   type = string
 }
 
-variable "aws_secret_key" {
-  type = string
-}
+variable "aws_access_key" {}
+variable "aws_secret_key" {}
