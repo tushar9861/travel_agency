@@ -42,7 +42,7 @@ pipeline {
                         script: "cd infra && terraform output -raw app_server_public_ip",
                         returnStdout: true
                     ).trim()
-                    echo "EC2 App Server IP: $APP_IP"
+                    echo "EC2 App Server IP: ${APP_IP}"
                 }
             }
         }
