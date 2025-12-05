@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        TF_IN_AUTOMATION = "true"
-    }
-
     stages {
 
         stage('Clone Repo') {
@@ -19,13 +15,13 @@ pipeline {
             }
         }
 
-        stage('Unit Tests') {
+        stage('Run Tests') {
             steps {
                 sh 'echo "Running tests..."'
             }
         }
 
-        stage('Terraform Init & Apply') {
+        stage('Terraform Apply') {
             steps {
                 sh '''
                     cd infra
@@ -35,14 +31,14 @@ pipeline {
             }
         }
 
-        stage('Extract EC2 IP') {
+        stage('Get EC2 IP') {
             steps {
                 script {
                     env.APP_IP = sh(
                         script: "cd infra && terraform output -raw app_server_public_ip",
                         returnStdout: true
                     ).trim()
-                    echo "EC2 App Server IP: ${APP_IP}"
+                    echo "EC2 Public IP: $APP_IP"
                 }
             }
         }
