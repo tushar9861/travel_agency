@@ -1,0 +1,23 @@
+# Ignore Terraform folders/files
+infra/
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+*.tfvars
+
+# Ignore Git repository
+.git/
+.gitignore
+
+# Ignore Jenkins
+Jenkinsfile
+
+# Ignore SSH keys
+*.pem
+*.key
+
+# Ignore OS / editor junk
+*.swp
+*.tmp
+*.log
+
