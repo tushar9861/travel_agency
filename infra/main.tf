@@ -3,7 +3,7 @@ resource "aws_instance" "app_server" {
   instance_type = "t2.micro"
 
   subnet_id              = var.public_subnet_id
-  vpc_security_group_ids = [var.vpc_security_group_ids]
+  vpc_security_group_ids = var.vpc_security_group_ids
   key_name               = var.key_name
 
   tags = {
