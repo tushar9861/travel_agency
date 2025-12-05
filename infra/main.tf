@@ -1,91 +1,49 @@
-############################################
-# 1. VPC
-############################################
-resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_support   = true
-  enable_dns_hostnames = true
+provider "aws" {
+  region     = var.aws_region
+  access_key = var.aws_access_key
+  secret_key = var.aws_secret_key
+}
 
-  tags = {
-    Name = "travel-agency-vpc"
+# Use DEFAULT VPC
+data "aws_vpc" "default" {
+  default = true
+}
+
+# Use default VPC subnet (public)
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
   }
 }
 
-############################################
-# 2. Internet Gateway
-############################################
-resource "aws_internet_gateway" "gw" {
-  vpc_id = aws_vpc.main.id
-
-  tags = {
-    Name = "travel-agency-igw"
-  }
+# Pick first subnet
+locals {
+  public_subnet_id = data.aws_subnets.default.ids[0]
 }
 
-############################################
-# 3. Public Subnet
-############################################
-resource "aws_subnet" "public_subnet" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.1.0/24"
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "travel-agency-public-subnet"
-  }
-}
-
-############################################
-# 4. Route Table
-############################################
-resource "aws_route_table" "public_rt" {
-  vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.gw.id
-  }
-
-  tags = {
-    Name = "travel-agency-public-rt"
-  }
-}
-
-############################################
-# 5. Route Table Association
-############################################
-resource "aws_route_table_association" "public_rt_assoc" {
-  subnet_id      = aws_subnet.public_subnet.id
-  route_table_id = aws_route_table.public_rt.id
-}
-
-############################################
-# 6. Security Group (SSH + HTTP)
-############################################
+# Security Group
 resource "aws_security_group" "app_sg" {
   name        = "travel-agency-app-sg"
   description = "Allow HTTP & SSH"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = data.aws_vpc.default.id
 
-  # SSH
   ingress {
-    description = "SSH access"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # HTTP
-  ingress {
-    description = "HTTP access"
+    description = "HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # ANY outbound
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -98,14 +56,14 @@ resource "aws_security_group" "app_sg" {
   }
 }
 
-############################################
-# 7. EC2 Instance
-############################################
+# EC2 Instance
 resource "aws_instance" "app_server" {
-  ami                    = var.ami_id
-  instance_type          = var.instance_type
-  subnet_id              = aws_subnet.public_subnet.id
-  key_name               = var.key_name
+  ami           = var.ami_id
+  instance_type = var.instance_type
+  key_name      = var.key_name
+
+  subnet_id = local.public_subnet_id
+
   vpc_security_group_ids = [aws_security_group.app_sg.id]
 
   tags = {
@@ -113,10 +71,6 @@ resource "aws_instance" "app_server" {
   }
 }
 
-############################################
-# 8. OUTPUT - Public IP
-############################################
 output "app_public_ip" {
-  description = "Public IP of the deployed EC2 instance"
-  value       = aws_instance.app_server.public_ip
+  value = aws_instance.app_server.public_ip
 }
