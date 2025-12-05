@@ -1,16 +1,14 @@
-variable "aws_region" {
-  type = string
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
 }
 
-variable "instance_type" {
-  type    = string
-  default = "t2.micro"
-}
-
-variable "ami_id" {
-  type    = string
-}
-
-variable "key_name" {
-  type = string
+provider "aws" {
+  region                  = var.aws_region
+  access_key              = env.AWS_ACCESS_KEY_ID
+  secret_key              = env.AWS_SECRET_ACCESS_KEY
 }
