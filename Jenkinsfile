@@ -20,7 +20,7 @@ pipeline {
                 sh '''
                     cd infra
                     terraform init -input=false
-                    terraform apply -auto-approve > tf_output.txt
+                    terraform apply -auto-approve
                 '''
             }
         }
@@ -32,7 +32,7 @@ pipeline {
                         script: "cd infra && terraform output -raw app_server_public_ip",
                         returnStdout: true
                     ).trim()
-                    echo "EC2 Public IP: $APP_IP"
+                    echo "EC2 Public IP: ${APP_IP}"
                 }
             }
         }
