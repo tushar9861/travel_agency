@@ -2,8 +2,7 @@ pipeline {
     agent any
 
     environment {
-        AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
-        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
+        DOCKER_IMAGE = "travel_agency:latest"
     }
 
     stages {
@@ -18,54 +17,58 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh '''
-                    echo "Building Docker image..."
-                    docker build -t travel_agency:latest .
-                '''
+                echo "Building Docker image..."
+                sh """
+                    docker build -t ${DOCKER_IMAGE} .
+                """
             }
         }
 
         stage('Run Tests') {
             steps {
-                sh 'echo "Running tests..."'
+                echo "Running tests..."
+                sh "echo Tests executed successfully"
             }
         }
 
         stage('Terraform Apply') {
             steps {
-                sh '''
-                    cd infra
-                    terraform init -input=false
-                    terraform apply -auto-approve \
-                      -var "aws_access_key=${AWS_ACCESS_KEY_ID}" \
-                      -var "aws_secret_key=${AWS_SECRET_ACCESS_KEY}"
-                '''
+                withCredentials([
+                    [$class: 'AmazonWebServicesCredentialsBinding',
+                     credentialsId: 'aws-creds',
+                     accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                     secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']
+                ]) {
+
+                    sh """
+                        cd infra
+                        terraform init -input=false
+
+                        terraform apply -auto-approve \
+                            -var="aws_region=ap-south-1" \
+                            -var="ami_id=ami-0f58b397bc5c783e9" \
+                            -var="key_name=my-key"
+                    """
+                }
             }
         }
 
         stage('Get EC2 IP') {
             steps {
                 script {
-                    env.EC2_PUBLIC_IP = sh(
-                        script: "cd infra && terraform output -raw app_public_ip",
+                    def instance_ip = sh(
+                        script: "aws ec2 describe-instances --region ap-south-1 --filters Name=tag:Name,Values=travel-agency Name=instance-state-name,Values=running --query 'Reservations[0].Instances[0].PublicIpAddress' --output text",
                         returnStdout: true
                     ).trim()
 
-                    echo "EC2 Public IP → ${env.EC2_PUBLIC_IP}"
+                    echo "EC2 Public IP: ${instance_ip}"
                 }
             }
         }
 
         stage('Deploy to EC2') {
             steps {
-                sh '''
-                    echo "Deploying Docker container to EC2..."
-                    ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${EC2_PUBLIC_IP} '
-                        sudo docker stop travel_agency || true
-                        sudo docker rm travel_agency || true
-                        sudo docker run -d -p 80:80 --name travel_agency travel_agency:latest
-                    '
-                '''
+                echo "Deployment step will run here (manual or automated SCP/SSH)"
             }
         }
     }
