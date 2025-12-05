@@ -3,13 +3,6 @@ pipeline {
 
     stages {
 
-        stage('Clone Repo') {
-            steps {
-                git branch: 'main', url: https:'//github.com/tushar9861/travel_agency.git'
-
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t travel_agency:latest .'
