@@ -1,24 +1,21 @@
-variable "aws_access_key" {
-  type = string
-}
-
-variable "aws_secret_key" {
-  type = string
+variable "aws_region" {
+  description = "AWS region to deploy into"
+  type        = string
+  default     = "ap-south-1"
 }
 
 variable "ami_id" {
-  description = "EC2 AMI ID"
+  description = "AMI ID for EC2 instance"
   type        = string
-  default     = "ami-0ecb62995f68bb549"
 }
 
 variable "key_name" {
-  description = "EC2 Key Pair"
+  description = "Existing EC2 key pair name"
   type        = string
-  default     = "key2"
 }
 
 variable "instance_type" {
-  type    = string
-  default = "t2.small"
+  description = "EC2 instance type"
+  type        = string
+  default     = "t2.small"
 }
