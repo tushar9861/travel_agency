@@ -10,15 +10,17 @@ pipeline {
         stage('Checkout Repository') {
             steps {
                 git branch: 'main',
-                    credentialsId: 'github',
-                    url: 'https://github.com/tushar9861/travel_agency.git'
+                    url: 'https://github.com/tushar9861/travel_agency.git',
+                    credentialsId: 'github'
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 echo "Building Docker image..."
-                sh "docker build -t ${env.DOCKER_IMAGE} ."
+                sh """
+                    docker build -t ${DOCKER_IMAGE} .
+                """
             }
         }
 
@@ -35,36 +37,39 @@ pipeline {
                     string(credentialsId: 'aws-access-key', variable: 'AWS_ACCESS_KEY'),
                     string(credentialsId: 'aws-secret-key', variable: 'AWS_SECRET_KEY')
                 ]) {
-                    sh '''
+                    sh """
                         cd infra
                         terraform init -input=false
 
                         terraform apply -auto-approve \
-                            -var aws_access_key="$AWS_ACCESS_KEY" \
-                            -var aws_secret_key="$AWS_SECRET_KEY" \
-                            -var ami_id="ami-0ecb62995f68bb549" \
-                            -var key_name="jenkins-cicd-key"
-                    '''
+                          -var aws_access_key=$AWS_ACCESS_KEY \
+                          -var aws_secret_key=$AWS_SECRET_KEY
+                    """
                 }
             }
         }
 
         stage('Get EC2 Public IP') {
+            when {
+                expression {
+                    currentBuild.result == null
+                }
+            }
             steps {
                 script {
-                    def ip = sh(
-                        script: "cd infra && terraform output -raw app_public_ip",
-                        returnStdout: true
-                    ).trim()
+                    def output = sh(returnStdout: true, script: """
+                        cd infra
+                        terraform output -raw app_public_ip
+                    """).trim()
 
-                    echo "EC2 Public IP: ${ip}"
+                    echo "🚀 EC2 Public IP: ${output}"
                 }
             }
         }
 
-        stage('Deploy (Future manual step)') {
+        stage('Deploy (Future Step)') {
             steps {
-                echo "Deployment will be automated in the next CI/CD phase."
+                echo "Deployment to EC2 will be added later..."
             }
         }
     }
