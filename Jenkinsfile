@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        AWS_ACCESS_KEY_ID     = credentials('aws-access-key')      // Jenkins → Manage Credentials
+        AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
         AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
     }
 
@@ -31,7 +31,7 @@ pipeline {
             }
         }
 
-        stage('Terraform Init & Apply') {
+        stage('Terraform Apply') {
             steps {
                 sh '''
                     cd infra
@@ -51,7 +51,7 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
-                    echo "Deployed EC2 Public IP → ${env.EC2_PUBLIC_IP}"
+                    echo "EC2 Public IP → ${env.EC2_PUBLIC_IP}"
                 }
             }
         }
@@ -60,7 +60,6 @@ pipeline {
             steps {
                 sh '''
                     echo "Deploying Docker container to EC2..."
-
                     ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${EC2_PUBLIC_IP} '
                         sudo docker stop travel_agency || true
                         sudo docker rm travel_agency || true
@@ -73,8 +72,7 @@ pipeline {
 
     post {
         always {
-            echo "Cleaning workspace..."
-            cleanWs()
+            echo "Pipeline finished."
         }
     }
 }
