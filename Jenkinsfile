@@ -5,7 +5,8 @@ pipeline {
 
         stage('Clone Repo') {
             steps {
-                git branch: 'main', url: 'https://github.com/YOUR_USERNAME/travel_agency.git'
+                git branch: 'main', url: https:'//github.com/tushar9861/travel_agency.git'
+
             }
         }
 
