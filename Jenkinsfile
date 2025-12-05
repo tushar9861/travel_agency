@@ -7,7 +7,7 @@ pipeline {
 
     stages {
 
-        stage('Checkout Code') {
+        stage('Checkout Repository') {
             steps {
                 git branch: 'main',
                     url: 'https://github.com/tushar9861/travel_agency.git',
@@ -33,42 +33,49 @@ pipeline {
 
         stage('Terraform Apply') {
             steps {
-                withCredentials([
-                    [$class: 'AmazonWebServicesCredentialsBinding',
-                     credentialsId: 'aws-creds',
-                     accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                     secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']
-                ]) {
-
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', 
+                                  credentialsId: 'aws-creds']]) {
                     sh """
                         cd infra
                         terraform init -input=false
-
                         terraform apply -auto-approve \
-                            -var="aws_region=ap-south-1" \
-                            -var="ami_id=ami-0f58b397bc5c783e9" \
-                            -var="key_name=my-key"
+                            -var aws_access_key=$AWS_ACCESS_KEY_ID \
+                            -var aws_secret_key=$AWS_SECRET_ACCESS_KEY
                     """
                 }
             }
         }
 
         stage('Get EC2 IP') {
+            when {
+                expression { fileExists('infra/terraform.tfstate') }
+            }
             steps {
                 script {
-                    def instance_ip = sh(
-                        script: "aws ec2 describe-instances --region ap-south-1 --filters Name=tag:Name,Values=travel-agency Name=instance-state-name,Values=running --query 'Reservations[0].Instances[0].PublicIpAddress' --output text",
+                    def ec2_ip = sh(
+                        script: "cd infra && terraform output -raw public_ip",
                         returnStdout: true
                     ).trim()
 
-                    echo "EC2 Public IP: ${instance_ip}"
+                    echo "EC2 Public IP: ${ec2_ip}"
+                    env.EC2_IP = ec2_ip
                 }
             }
         }
 
         stage('Deploy to EC2') {
+            when {
+                expression { env.EC2_IP?.trim() }
+            }
             steps {
-                echo "Deployment step will run here (manual or automated SCP/SSH)"
+                echo "Deploying Docker Container to EC2..."
+
+                sh """
+                    ssh -o StrictHostKeyChecking=no -i ~/.ssh/terraform-key ubuntu@${EC2_IP} '
+                        sudo docker rm -f travel_agency || true
+                        sudo docker run -d --name travel_agency -p 80:80 travel_agency:latest
+                    '
+                """
             }
         }
     }
@@ -76,6 +83,7 @@ pipeline {
     post {
         always {
             echo "Pipeline finished."
+            cleanWs()
         }
     }
 }
