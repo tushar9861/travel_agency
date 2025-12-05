@@ -1,5 +1,3 @@
-// Jenkinsfile
-
 pipeline {
     agent any
 
@@ -12,64 +10,68 @@ pipeline {
         stage('Checkout Repository') {
             steps {
                 git branch: 'main',
-                    url: 'https://github.com/tushar9861/travel_agency.git',
-                    credentialsId: 'github'
+                    credentialsId: 'github',
+                    url: 'https://github.com/tushar9861/travel_agency.git'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo 'Building Docker image...'
-                sh '''
-                  docker build -t ${DOCKER_IMAGE} .
-                '''
+                echo "Building Docker image..."
+                sh "docker build -t ${env.DOCKER_IMAGE} ."
             }
         }
 
         stage('Run Tests') {
             steps {
-                echo 'Running tests...'
-                sh 'echo "Tests executed successfully"'
+                echo "Running tests..."
+                sh "echo Tests executed successfully"
             }
         }
 
         stage('Terraform Apply') {
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
+                withCredentials([
+                    string(credentialsId: 'aws-access-key', variable: 'AWS_ACCESS_KEY'),
+                    string(credentialsId: 'aws-secret-key', variable: 'AWS_SECRET_KEY')
+                ]) {
                     sh '''
-                      cd infra
-                      terraform init -input=false
-                      terraform apply -auto-approve \
-                        -var aws_access_key=$AWS_ACCESS_KEY_ID \
-                        -var aws_secret_key=$AWS_SECRET_ACCESS_KEY
+                        cd infra
+                        terraform init -input=false
+
+                        terraform apply -auto-approve \
+                            -var aws_access_key="$AWS_ACCESS_KEY" \
+                            -var aws_secret_key="$AWS_SECRET_KEY" \
+                            -var ami_id="ami-0ecb62995f68bb549" \
+                            -var key_name="jenkins-cicd-key"
                     '''
                 }
             }
         }
 
-        stage('Get EC2 IP') {
+        stage('Get EC2 Public IP') {
             steps {
                 script {
                     def ip = sh(
                         script: "cd infra && terraform output -raw app_public_ip",
                         returnStdout: true
                     ).trim()
-                    env.APP_SERVER_IP = ip
-                    echo "App EC2 Public IP: ${ip}"
+
+                    echo "EC2 Public IP: ${ip}"
                 }
             }
         }
 
-        stage('Deploy to EC2 (manual / future)') {
+        stage('Deploy (Future manual step)') {
             steps {
-                echo 'App EC2 created. You can now SSH and run Docker there (future automation step).'
+                echo "Deployment will be automated in the next CI/CD phase."
             }
         }
     }
 
     post {
         always {
-            echo 'Pipeline finished.'
+            echo "Pipeline finished."
             cleanWs()
         }
     }
