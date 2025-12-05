@@ -1,31 +1,24 @@
-variable "aws_region" {
-  type        = string
-  default     = "ap-south-1"
-  description = "AWS region"
-}
-
 variable "aws_access_key" {
-  type        = string
-  description = "AWS Access Key from Jenkins"
+  type = string
 }
 
 variable "aws_secret_key" {
-  type        = string
-  description = "AWS Secret Key from Jenkins"
+  type = string
 }
 
 variable "ami_id" {
+  description = "EC2 AMI ID"
   type        = string
-  description = "AMI ID for EC2 instance"
+  default     = "ami-0ecb62995f68bb549"
 }
 
 variable "key_name" {
+  description = "EC2 Key Pair"
   type        = string
-  description = "Existing EC2 Key Pair name"
+  default     = "key2"
 }
 
 variable "instance_type" {
-  type        = string
-  default     = "t2.small"
-  description = "Instance type for EC2"
+  type    = string
+  default = "t2.small"
 }
