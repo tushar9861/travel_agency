@@ -3,14 +3,14 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "travel_agency:latest"
+        APP_IP       = ""
     }
 
     stages {
 
-        stage('Checkout') {
+        stage('Checkout Repository') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/tushar9861/travel_agency.git'
+                git url: 'https://github.com/tushar9861/travel_agency.git', branch: 'main'
             }
         }
 
@@ -23,31 +23,34 @@ pipeline {
 
         stage('Run Tests') {
             steps {
+                echo "Running tests..."
                 sh 'echo "Tests executed successfully"'
             }
         }
 
-        stage('Terraform Apply') {
+        stage('Terraform Init/Plan/Apply') {
             steps {
-                withCredentials([[ 
+                withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'aws-access-key',
                     accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY',
+                    credentialsId: 'aws-access-key'     // Must match Jenkins credentials
                 ]]) {
                     dir('infra') {
-
                         sh '''
+                            echo "Running Terraform..."
+
                             terraform init -input=false
 
-                            terraform apply -auto-approve \
-                                -var aws_access_key=$AWS_ACCESS_KEY_ID \
-                                -var aws_secret_key=$AWS_SECRET_ACCESS_KEY \
-                                -var aws_region=us-east-1 \
-                                -var ami_id=ami-0ecb62995f68bb549 \
-                                -var key_name=key2 \
-                                -var subnet_id=subnet-0e60839b6c07990fb \
-                                -var security_group_id=sg-0003b5a107d9baee2
+                            terraform validate
+
+                            terraform plan -input=false -out=tfplan \
+                                -var="ami_id=ami-03deb8c961063af8c" \
+                                -var="key_name=key2" \
+                                -var="subnet_id=subnet-0e60839b6c07990fb" \
+                                -var="security_group_id=sg-0003b5a107d9baee2"
+
+                            terraform apply -auto-approve tfplan
                         '''
                     }
                 }
@@ -57,26 +60,42 @@ pipeline {
         stage('Get EC2 Public IP') {
             steps {
                 script {
-                    env.APP_IP = sh(
-                        script: "cd infra && terraform output -raw app_public_ip",
+                    def ip = sh(
+                        script: "cd infra && terraform output -raw app_public_ip || echo ''",
                         returnStdout: true
                     ).trim()
 
-                    echo "EC2 IP: ${env.APP_IP}"
+                    if (!ip) {
+                        error "❌ ERROR: Could not retrieve EC2 public IP"
+                    }
+
+                    env.APP_IP = ip
+                    echo "✔ EC2 Public IP: ${env.APP_IP}"
                 }
+            }
+        }
+
+        stage('Deploy to EC2 (Future Step)') {
+            when {
+                expression { env.APP_IP?.trim() }
+            }
+            steps {
+                echo "Deployment ready: http://${env.APP_IP}"
+                echo "Add SCP/SSH deployment steps here later."
             }
         }
     }
 
     post {
+        always {
+            echo "Pipeline finished."
+            cleanWs()
+        }
         success {
-            echo "Deployment successful! App running on http://${env.APP_IP}"
+            echo "🎉 SUCCESS! App deployed on: http://${env.APP_IP}"
         }
         failure {
-            echo "Pipeline failed. Check logs."
-        }
-        always {
-            cleanWs()
+            echo "❌ Pipeline failed — check logs."
         }
     }
 }
