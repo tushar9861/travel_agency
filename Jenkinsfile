@@ -1,15 +1,17 @@
 pipeline {
     agent any
+
     environment {
         DOCKER_IMAGE = "travel_agency:latest"
-        APP_IP       = ""  // Will be filled later
+        APP_IP       = ""
     }
+
     stages {
+
         stage('Checkout Repository') {
             steps {
                 git branch: 'main',
                     url: 'https://github.com/tushar9861/travel_agency.git'
-                // credentialsId not needed for public repo → removed
             }
         }
 
@@ -22,24 +24,30 @@ pipeline {
 
         stage('Run Tests') {
             steps {
-            echo "Running tests..."
-            sh 'echo "Tests executed successfully"'
+                echo "Running tests..."
+                sh 'echo "Tests executed successfully"'
+            }
         }
 
         stage('Terraform Apply') {
             steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'aws-access-key',           // Must exist in Jenkins!
-                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                ]]) {
+                withCredentials([
+                    [$class: 'StringBinding',
+                     credentialsId: 'aws-access-key',
+                     variable: 'AWS_ACCESS_KEY_ID'
+                    ],
+                    [$class: 'StringBinding',
+                     credentialsId: 'aws-secret-key',
+                     variable: 'AWS_SECRET_ACCESS_KEY'
+                    ]
+                ]) {
+
                     dir('infra') {
                         sh '''
+                            echo "Using AWS Access Key: $AWS_ACCESS_KEY_ID"
                             terraform init -input=false
                             terraform validate
                             terraform plan -out=tfplan
-                            
                             terraform apply -auto-approve tfplan
                         '''
                     }
@@ -50,32 +58,28 @@ pipeline {
         stage('Get EC2 Public IP') {
             steps {
                 script {
-                    def output = sh(
-                        script: "cd infra && terraform output -raw app_public_ip 2>/dev/null || echo 'NOT_FOUND'",
+                    def result = sh(
+                        script: "cd infra && terraform output -raw app_public_ip 2>/dev/null || echo NOT_FOUND",
                         returnStdout: true
                     ).trim()
-                    
-                    if (output == 'NOT_FOUND' || output == '') {
-                        error "Could not get EC2 public IP. Check if output 'app_public_ip' exists."
+
+                    if (result == "NOT_FOUND") {
+                        error("EC2 Public IP not found. Check your outputs.tf")
                     }
-                    
-                    env.APP_IP = output
-                    echo "EC2 Public IP: ${env.APP_IP}"
+
+                    env.APP_IP = result
+                    echo "EC2 Public IP = ${env.APP_IP}"
                 }
             }
         }
 
         stage('Deploy to EC2') {
             when {
-                expression { env.APP_IP != null && env.APP_IP != '' && env.APP_IP != 'NOT_FOUND' }
+                expression { env.APP_IP && env.APP_IP != "NOT_FOUND" }
             }
             steps {
-                echo "Deploying to http://${env.APP_IP}"
-                // Example: Copy files via SCP
-                // sh "scp -o StrictHostKeyChecking=no -i key2.pem docker-compose.yml ubuntu@${env.APP_IP}:~/"
-                // sh "ssh -o StrictHostKeyChecking=no -i key2.pem ubuntu@${env.APP_IP} 'docker pull your-registry/travel_agency:latest && docker-compose up -d'"
-                
-                echo "Deploy step ready — add SSH/SCP/Ansible here!"
+                echo "Deploying to server: http://${env.APP_IP}"
+                echo "Add SSH/SCP commands here to deploy"
             }
         }
     }
@@ -86,10 +90,10 @@ pipeline {
             cleanWs()
         }
         success {
-            echo "Deployment successful! App running at: http://${env.APP_IP}"
+            echo "Deployment successful! App running at http://${env.APP_IP}"
         }
         failure {
-            echo 'Pipeline failed — check logs above'
+            echo 'Pipeline failed — check logs.'
         }
     }
 }
