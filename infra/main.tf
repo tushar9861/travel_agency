@@ -58,7 +58,7 @@ resource "aws_security_group" "app_sg" {
 # -------------------------
 resource "aws_instance" "app_server" {
   ami                    = "ami-03deb8c961063af8c"
-  instance_type          = "t2.micro"
+  instance_type          = "t2.small"
   key_name               = "key2"
   subnet_id              = "subnet-0e60839b6c07990fb"
   vpc_security_group_ids = [aws_security_group.app_sg.id]
