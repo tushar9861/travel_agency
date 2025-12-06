@@ -1,83 +1,75 @@
-pipeline {
-    agent any
+provider "aws" {
+  region     = "ap-south-1"
+}
 
-    environment {
-        TF_VAR_aws_region     = "ap-south-1"
-        TF_VAR_ami_id         = "ami-0ecb62995f68bb549"
-        TF_VAR_key_name       = "key2"
-        TF_VAR_instance_type  = "t2.micro"
-    }
+# -------------------------
+# Create Security Group
+# -------------------------
+resource "aws_security_group" "app_sg" {
+  name        = "travel-agency-sg"
+  description = "Security group for Jenkins and Web App"
+  vpc_id      = "vpc-024d625c13562fbde"
 
-    stages {
+  # Allow Jenkins (8080)
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-        stage('Checkout Repository') {
-            steps {
-                git url: 'https://github.com/tushar9861/travel_agency.git', credentialsId: 'github'
-            }
-        }
+  # Allow HTTP (80)
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-        stage('Build Docker Image') {
-            steps {
-                echo "Building Docker image..."
-                sh 'docker build -t travel_agency:latest .'
-            }
-        }
+  # Allow HTTPS (443)
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-        stage('Run Tests') {
-            steps {
-                echo "Running tests..."
-                sh 'echo Tests executed successfully'
-            }
-        }
+  # Allow SSH only from your IP
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["YOUR_PUBLIC_IP/32"] 
+  }
 
-        stage('Terraform Apply') {
-            steps {
-                withCredentials([[$class: 'UsernamePasswordMultiBinding',
-                    credentialsId: 'key2',
-                    usernameVariable: 'AWS_ACCESS_KEY',
-                    passwordVariable: 'AWS_SECRET_KEY'
-                ]]) {
+  # Allow all outbound traffic
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-                    sh '''
-                        cd infra
-                        echo "Initializing Terraform..."
-                        terraform init -input=false
+  tags = {
+    Name = "travel-agency-sg"
+  }
+}
 
-                        echo "Applying Terraform..."
-                        terraform apply -auto-approve \
-                          -var="aws_access_key=$AWS_ACCESS_KEY" \
-                          -var="aws_secret_key=$AWS_SECRET_KEY"
-                    '''
-                }
-            }
-        }
+# -------------------------
+# EC2 Instance
+# -------------------------
+resource "aws_instance" "app_server" {
+  ami                    = "ami-03deb8c961063af8c"
+  instance_type          = "t2.micro"
+  key_name               = "key2"
+  subnet_id              = "subnet-0e60839b6c07990fb"
+  vpc_security_group_ids = [aws_security_group.app_sg.id]
 
-        stage('Get EC2 Public IP') {
-            steps {
-                script {
-                    env.APP_IP = sh(
-                        script: "cd infra && terraform output -raw app_public_ip",
-                        returnStdout: true
-                    ).trim()
+  tags = {
+    Name = "travel-agency-app-server"
+  }
+}
 
-                    echo "EC2 Public IP: ${APP_IP}"
-                }
-            }
-        }
-
-        stage('Deploy (Future Step)') {
-            when { expression { env.APP_IP != null && env.APP_IP != '' } }
-            steps {
-                echo "Deployment step will run manually later."
-            }
-        }
-
-    }
-
-    post {
-        always {
-            echo "Pipeline finished."
-            cleanWs()
-        }
-    }
+output "app_server_public_ip" {
+  value = aws_instance.app_server.public_ip
 }
