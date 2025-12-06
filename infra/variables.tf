@@ -1,43 +1,33 @@
+variable "aws_region" {
+  type    = string
+  default = "us-east-1"
+}
+
 variable "aws_access_key" {
-  type        = string
-  description = "AWS access key for provider authentication"
+  type = string
 }
 
 variable "aws_secret_key" {
-  type        = string
-  description = "AWS secret key for provider authentication"
-  sensitive   = true
+  type = string
 }
 
 variable "ami_id" {
-  type        = string
-  description = "AMI ID for the EC2 instance"
-}
-
-variable "key_name" {
-  type        = string
-  default = "key2"
-  description = "Existing EC2 key pair name"
+  type    = string
 }
 
 variable "instance_type" {
-  type        = string
-  default     = "t2.micro"
+  type    = string
+  default = "t2.micro"
+}
+
+variable "key_name" {
+  type    = string
 }
 
 variable "subnet_id" {
-  type        = string
-  description = "Subnet ID where the EC2 instance will be placed"
+  type = string
 }
 
 variable "security_group_id" {
-  type        = string
-  description = "Security group ID for the EC2 instance"
+  type = string
 }
-
-variable "aws_region" {
-  type        = string
-  description = "AWS region to deploy resources in"
-  default     = "us-east-1"
-}
-
