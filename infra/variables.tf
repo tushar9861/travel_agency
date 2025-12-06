@@ -33,3 +33,10 @@ variable "security_group_id" {
   type        = string
   description = "Security group ID for the EC2 instance"
 }
+
+variable "aws_region" {
+  type        = string
+  description = "AWS region to deploy resources in"
+  default     = "us-east-1"
+}
+
