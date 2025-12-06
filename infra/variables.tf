@@ -19,3 +19,13 @@ variable "instance_type" {
   type = string
   default = "t2.small"
 }
+
+variable "subnet_id" {
+  type        = string
+  description = "Subnet ID where EC2 should be launched"
+}
+
+variable "security_group_id" {
+  type        = string
+  description = "Security group ID for EC2 instance"
+}
