@@ -3,12 +3,11 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "travel_agency:latest"
-        APP_IP       = ""
     }
 
     stages {
 
-        stage('Checkout Repository') {
+        stage('Checkout') {
             steps {
                 git branch: 'main',
                     url: 'https://github.com/tushar9861/travel_agency.git'
@@ -24,31 +23,31 @@ pipeline {
 
         stage('Run Tests') {
             steps {
-                echo "Running tests..."
                 sh 'echo "Tests executed successfully"'
             }
         }
 
         stage('Terraform Apply') {
             steps {
-                withCredentials([
-                    [$class: 'StringBinding',
-                     credentialsId: 'aws-access-key',
-                     variable: 'AWS_ACCESS_KEY_ID'
-                    ],
-                    [$class: 'StringBinding',
-                     credentialsId: 'aws-secret-key',
-                     variable: 'AWS_SECRET_ACCESS_KEY'
-                    ]
-                ]) {
-
+                withCredentials([[ 
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-access-key',
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]) {
                     dir('infra') {
+
                         sh '''
-                            echo "Using AWS Access Key: $AWS_ACCESS_KEY_ID"
                             terraform init -input=false
-                            terraform validate
-                            terraform plan -out=tfplan
-                            terraform apply -auto-approve tfplan
+
+                            terraform apply -auto-approve \
+                                -var aws_access_key=$AWS_ACCESS_KEY_ID \
+                                -var aws_secret_key=$AWS_SECRET_ACCESS_KEY \
+                                -var aws_region=us-east-1 \
+                                -var ami_id=ami-0ecb62995f68bb549 \
+                                -var key_name=key2 \
+                                -var subnet_id=subnet-0e60839b6c07990fb \
+                                -var security_group_id=sg-0003b5a107d9baee2
                         '''
                     }
                 }
@@ -58,42 +57,26 @@ pipeline {
         stage('Get EC2 Public IP') {
             steps {
                 script {
-                    def result = sh(
-                        script: "cd infra && terraform output -raw app_public_ip 2>/dev/null || echo NOT_FOUND",
+                    env.APP_IP = sh(
+                        script: "cd infra && terraform output -raw app_public_ip",
                         returnStdout: true
                     ).trim()
 
-                    if (result == "NOT_FOUND") {
-                        error("EC2 Public IP not found. Check your outputs.tf")
-                    }
-
-                    env.APP_IP = result
-                    echo "EC2 Public IP = ${env.APP_IP}"
+                    echo "EC2 IP: ${env.APP_IP}"
                 }
-            }
-        }
-
-        stage('Deploy to EC2') {
-            when {
-                expression { env.APP_IP && env.APP_IP != "NOT_FOUND" }
-            }
-            steps {
-                echo "Deploying to server: http://${env.APP_IP}"
-                echo "Add SSH/SCP commands here to deploy"
             }
         }
     }
 
     post {
-        always {
-            echo 'Pipeline finished.'
-            cleanWs()
-        }
         success {
-            echo "Deployment successful! App running at http://${env.APP_IP}"
+            echo "Deployment successful! App running on http://${env.APP_IP}"
         }
         failure {
-            echo 'Pipeline failed — check logs.'
+            echo "Pipeline failed. Check logs."
+        }
+        always {
+            cleanWs()
         }
     }
 }
