@@ -29,6 +29,23 @@ pipeline {
             }
         }
 
+        stage('Debug AWS Keys') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'aws-credentials',
+                        usernameVariable: 'AWS_ACCESS_KEY',
+                        passwordVariable: 'AWS_SECRET_KEY'
+                    )
+                ]) {
+                    sh '''
+                        echo "Jenkins AWS Access Key:"
+                        echo ${AWS_ACCESS_KEY:0:4}******    # Show first 4 characters only
+                    '''
+                }
+            }
+        }
+
         stage('Terraform Apply') {
             steps {
                 withCredentials([
