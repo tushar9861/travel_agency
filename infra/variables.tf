@@ -1,23 +1,21 @@
 variable "aws_region" {
-  description = "AWS region to deploy resources in"
-  type        = string
-  default     = "ap-south-1"
+  default = "ap-south-1"
 }
 
-variable "project_name" {
-  description = "Project name prefix for tagging"
-  type        = string
-  default     = "travel-agency"
-}
+variable "aws_access_key" {}
+variable "aws_secret_key" {}
 
-variable "instance_type" {
-  description = "EC2 instance type"
-  type        = string
-  default     = "t2.micro"
+variable "ami_id" {
+  type = string
+  default = "ami-0ecb62995f68bb549" # your confirmed AMI
 }
 
 variable "key_name" {
-  description = "Existing EC2 Key Pair name (must already exist in AWS)"
-  type        = string
-  default     = "terraform-key" # change if your key name is different
+  type = string
+  default = "key2"
+}
+
+variable "instance_type" {
+  type = string
+  default = "t2.micro"
 }
